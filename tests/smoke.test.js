@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {Simulation,distanceOK,markersVisible,assignSides,headSides,createScenario,weaponHits} from '../engine.js';
 test('距離閾値と記号消失時刻',()=>{
   assert.equal(distanceOK('middle',14.99),false);assert.equal(distanceOK('middle',15),true);assert.equal(distanceOK('middle',20),true);assert.equal(distanceOK('middle',20.01),false);
-  assert.equal(distanceOK('far',34.99),false);assert.equal(distanceOK('far',35),true);
+  assert.equal(distanceOK('far',37.99),false);assert.equal(distanceOK('far',38),true);
   assert.equal(markersVisible(5.49),false);assert.equal(markersVisible(5.5),true);assert.equal(markersVisible(11.49),true);assert.equal(markersVisible(11.5),false);
 });
 test('重複と頭割りは同記号ペアを交換',()=>{
@@ -20,3 +20,6 @@ test('代表8ケースをNPCが29秒まで処理する',()=>{
 test('スプリント10秒・60秒リキャストと停止中の時間固定',()=>{
   const sim=new Simulation({seed:42});sim.start();assert.equal(sim.sprint(),true);assert.equal(sim.sprint(),false);sim.togglePause();sim.advance(1);assert.equal(sim.time,0);
 });
+
+import {Camera} from '../camera.js';
+test('カメラは最短方向に0.5秒で回転',()=>{const c=new Camera();c.turnTo(Math.PI/2);c.update(.25);assert.ok(Math.abs(c.angle-Math.PI/4)<1e-8);c.update(.25);assert.ok(Math.abs(c.angle-Math.PI/2)<1e-8);assert.equal(c.motion,null);});

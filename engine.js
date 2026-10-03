@@ -1,7 +1,7 @@
 // Distances are metres; y points south. Geometry is independent of rendering.
 export const ROLES=['H1','MT','D1','D3','H2','ST','D2','D4'];
 export const SYMBOLS=['○','×','△','□'];
-export const CFG={radius:20,walk:6,sprint:7.8,sprintDuration:10,sprintCooldown:60,maleRadius:10,lineHalfWidth:5,flareRadius:5,stackRadius:6,knockback:15};
+export const CFG={radius:20,walk:6.25,sprint:8.125,sprintDuration:10,sprintCooldown:60,maleRadius:10,lineHalfWidth:5,flareRadius:5,stackRadius:6,knockback:15};
 export const EVENTS=[{time:0,label:'連携プログラムPT 詠唱'},{time:3,label:'詠唱完了'},{time:5.5,label:'記号・距離デバフ付与'},{time:7.5,label:'男女・目 出現'},{time:11.3,label:'武器攻撃 予兆'},{time:11.5,label:'武器着弾・記号消失'},{time:17.5,label:'目・ファイラ／頭割り付与'},{time:25.5,label:'中央から15m吹き飛ばし'},{time:29,label:'男5人の円範囲・頭割り'}];
 export const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 export const rot=(p,a)=>({x:p.x*Math.cos(a)-p.y*Math.sin(a),y:p.x*Math.sin(a)+p.y*Math.cos(a)});
@@ -26,25 +26,29 @@ export function headSides(players,stackIds){
   }
   return {sides,exchanged};
 }
-export const distanceOK=(mode,d)=>mode==='far'?d>=35-1e-7:d>=15-1e-7&&d<=20+1e-7;
-export function bosses(s){const a=s.weaponAngle;return {male:rot({x:8,y:-8},a),female:rot({x:-7,y:0},a),otherFemale:rot({x:-8,y:-13},a)};}
+export const distanceOK=(mode,d)=>mode==='far'?d>=38-1e-7:d>=15-1e-7&&d<=20+1e-7;
+// Coordinates use the tips/feet of the reference icons, not their heads.
+export const BOSS_LAYOUT={male:{x:8,y:-4},female:{x:-8,y:4},otherFemale:{x:-8,y:-8},otherMale:{x:0,y:0}};
+export function bosses(s){return Object.fromEntries(Object.entries(BOSS_LAYOUT).map(([k,p])=>[k,rot(p,s.weaponAngle)]));}
 export function weaponHits(s,point,margin=0){
-  const p=rot(point,-s.weaponAngle),m={x:8,y:-8},f={x:-7,y:0};
+  const p=rot(point,-s.weaponAngle),m=BOSS_LAYOUT.male,f=BOSS_LAYOUT.female;
   const dm=dist(p,m),male=s.male==='sword'?dm<10+margin:dm>10-margin;
-  const staff=Math.abs(p.x-f.x)<5+margin||Math.abs(p.y-f.y)<5+margin;
-  const female=s.female==='staff'?staff:Math.abs(p.y-f.y)>5-margin;
-  return {male,female};
+  const len=Math.hypot(f.x,f.y),ux=-f.x/len,uy=-f.y/len;
+  const dx=p.x-f.x,dy=p.y-f.y,along=dx*ux+dy*uy,across=-dx*uy+dy*ux;
+  const staff=Math.abs(along)<5+margin||Math.abs(across)<5+margin;
+  return {male,female:s.female==='staff'?staff:Math.abs(across)>5-margin};
 }
+export function openingTarget(p,side=p.initialSide){return {x:(side===0?-1:1)*[6,8,8,6][p.priority],y:[-7,-2.3,2.3,7][p.priority]};}
 export function psTarget(s,p){
   const row=p.side===1&&s.mode==='far'?3-p.symbol:p.symbol;
-  const ys=s.mode==='far'?[-14.5,-4.5,4.5,14.5]:[-13,-4.35,4.35,13];
-  const x=s.mode==='far'?Math.sqrt(19*19-ys[row]*ys[row]):8.5;
+  const ys=s.mode==='far'?[-18.3,-5.5,5.5,18.3]:[-17.5,-5.5,5.5,17.5];
+  const x=s.mode==='far'?Math.sqrt(19.5*19.5-ys[row]*ys[row]):8.5;
   return rot({x:(p.side===0?-1:1)*x,y:ys[row]},s.eyeAngle);
 }
 export function stackTarget(s,p,pre=false){
   const side=s.headSides[p.id],direction=side===0?-Math.PI/2:s.mode==='far'?Math.PI/2:Math.PI;
   // 2m + 15m knockback, then move to the middle/far safe pockets.
-  const r=pre?2:s.mode==='far'?18.5:13.5;
+  const r=pre?2:s.mode==='far'?19.4:13.5;
   const base=polar(r,direction+s.knockAngle);
   if(pre)return base;
   const peers=s.players.filter(q=>s.headSides[q.id]===side),i=peers.findIndex(q=>q.id===p.id);
@@ -65,6 +69,7 @@ export function createScenario(options={}){
   const angle=v=>v!==undefined&&v!=='random'?Number(v)*Math.PI/4:Math.floor(rng()*8)*Math.PI/4;
   const symbols=shuffle([0,0,1,1,2,2,3,3],rng);
   const players=ROLES.map((role,id)=>({id,role,priority:id%4,initialSide:id<4?0:1,symbol:symbols[id],side:0,x:(id<4?-1:1)*(1+(id%4)*0.4),y:1+(id%4)*0.7,alive:true}));
+  players.forEach(p=>Object.assign(p,openingTarget(p)));
   const sides=assignSides(players);players.forEach(p=>p.side=sides[p.id]);
   // A pair cannot supply both stack markers: otherwise paired swaps cannot split them.
   const first=Math.floor(rng()*8),second=shuffle(players.filter(p=>p.symbol!==players[first].symbol),rng)[0].id;
@@ -74,7 +79,7 @@ export function createScenario(options={}){
 }
 export const markersVisible=t=>t>=5.5&&t<11.5;
 export function targetFor(s,p,t){
-  if(t<7.5)return {x:p.initialSide===0?-2:2,y:2};
+  if(t<7.5)return openingTarget(p,t<5.5?p.initialSide:p.side);
   if(t<11.5)return s.weaponTargets[p.id];
   if(t<17.5)return psTarget(s,p);
   return stackTarget(s,p,t<25.5);
@@ -95,7 +100,7 @@ export class Simulation{
       if(this.vulnerable(p))failures.push([p,`距離条件未達でファイラ（ペア間 ${dist(p,this.pair(p)).toFixed(1)}m）`]);
       if(alive.some(q=>q.id!==p.id&&dist(p,q)<5))failures.push([p,'他のプレイヤーのファイラに被弾']);
       const row=p.side===1&&this.scenario.mode==='far'?3-p.symbol:p.symbol;
-      const limits=this.scenario.mode==='far'?[-Infinity,-9.5,0,9.5,Infinity]:[-Infinity,-8.675,0,8.675,Infinity];
+      const limits=this.scenario.mode==='far'?[-Infinity,-11.9,0,11.9,Infinity]:[-Infinity,-11.5,0,11.5,Infinity];
       if((p.side===0?q.x>=0:q.x<=0)||q.y<limits[row]||q.y>limits[row+1])failures.push([p,'マクロの担当側・記号の並びと異なる散開位置']);
     }
     for(const [p,r] of failures)this.fail(p,r);
