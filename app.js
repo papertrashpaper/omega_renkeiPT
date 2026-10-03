@@ -42,7 +42,7 @@ function draw(){
   textAt('N',{x:0,y:-21},'#a9bdce',13);
   if(t<5.5){sprite('male-sword',{x:-3,y:0});sprite('female-staff',{x:3,y:0});}
   if(t>=7.5&&t<17.5)drawEye(s);
-  if(t>=7.5&&t<17.5){const b=bosses(s);sprite(`female-${s.female}`,b.otherFemale);sprite(`male-${s.male}`,b.otherMale);sprite(`male-${s.male}`,b.male);sprite(`female-${s.female}`,b.female);}
+  if(t>=7.5&&t<17.5){const b=bosses(s);sprite('female-staff',b.otherFemale);sprite('male-sword',b.otherMale);sprite(`male-${s.male}`,b.male);sprite(`female-${s.female}`,b.female);}
   if(t>=17.5){for(const p of lateBosses(s))sprite('male-sword',p,90);sprite('female-staff',{x:0,y:0},94);}
   for(const e of sim.effects){if(e.type==='flare'&&t-e.at<.6)for(const p of e.points)circle(p,5,'#f66b4b38','#ffc191',2);if(e.type==='knock'&&t-e.at<1.5)circle({x:0,y:0},2+Math.max(0,t-e.at)*10,null,'#a9e1ff',3);}
   if(t>=23.5&&t<25.5){
