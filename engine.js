@@ -59,8 +59,13 @@ export function stackTarget(s,p,pre=false){
 export function lateBosses(s){return [-Math.PI/4,0,Math.PI/4,3*Math.PI/4,5*Math.PI/4].map(a=>polar(13.5,a+s.knockAngle));}
 export function safeWeaponTarget(s,p){
   const desired=psTarget(s,p),b=bosses(s),anchor=s.male==='sword'&&s.female==='feet'?b.female:b.male;let best=null,score=Infinity;
+  // Predict position after the 2-second symbol swap; only select reachable safe points.
+  const start=openingTarget(p),swapped=openingTarget(p,p.side),swapDistance=dist(start,swapped);
+  const fraction=swapDistance?Math.min(1,CFG.walk*2/swapDistance):1;
+  const from={x:start.x+(swapped.x-start.x)*fraction,y:start.y+(swapped.y-start.y)*fraction};
   for(let x=-17;x<=17;x+=0.5)for(let y=-17;y<=17;y+=0.5){
     const q={x,y},h=weaponHits(s,q,0.65);if(Math.hypot(x,y)>18||h.male||h.female)continue;
+    if(dist(q,from)>CFG.walk*4-0.5||dist(q,desired)>CFG.walk*6-0.5)continue;
     const cost=dist(q,anchor)+0.12*dist(q,desired);if(cost<score){score=cost;best=q;}
   }
   if(!best)throw Error('No weapon safe point');return best;

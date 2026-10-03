@@ -1,5 +1,5 @@
 import {Camera} from './camera.js';
-import {Simulation,ROLES,SYMBOLS,EVENTS,CFG,dist,rot,polar,bosses,lateBosses,weaponHits,markersVisible,targetFor} from './engine.js?v=mechanics-20261003b';
+import {Simulation,ROLES,SYMBOLS,EVENTS,CFG,dist,rot,polar,bosses,lateBosses,weaponHits,markersVisible,targetFor} from './engine.js?v=npc-routing-20261003';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const colors=['#fc7e89','#77cff2','#85e7bd','#d7a0f7'];
 let saved={};try{saved=JSON.parse(localStorage.getItem('omega-renkei-settings')||'{}');}catch{}
