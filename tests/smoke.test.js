@@ -2,13 +2,13 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {Simulation,distanceOK,markersVisible,assignSides,headSides,createScenario,weaponHits} from '../engine.js';
 test('距離閾値と記号消失時刻',()=>{
   assert.equal(distanceOK('middle',14.99),false);assert.equal(distanceOK('middle',15),true);assert.equal(distanceOK('middle',20),true);assert.equal(distanceOK('middle',20.01),false);
-  assert.equal(distanceOK('far',37.99),false);assert.equal(distanceOK('far',38),true);
+  assert.equal(distanceOK('far',34.99),false);assert.equal(distanceOK('far',35),true);
   assert.equal(markersVisible(5.49),false);assert.equal(markersVisible(5.5),true);assert.equal(markersVisible(11.49),true);assert.equal(markersVisible(11.5),false);
 });
 test('重複と頭割りは同記号ペアを交換',()=>{
   const s=createScenario({seed:42}),sides=assignSides(s.players);
   for(let k=0;k<4;k++){const pair=s.players.filter(p=>p.symbol===k);assert.notEqual(sides[pair[0].id],sides[pair[1].id]);}
-  const ids=s.players.filter(p=>p.side===0).slice(0,2).map(p=>p.id),h=headSides(s.players,ids);
+  const ids=s.players.filter(p=>p.side===0).slice(0,2).map(p=>p.id),h=headSides(s.players,ids,s.mode);
   assert.equal(h.sides.filter(v=>v===0).length,4);assert.notEqual(h.sides[ids[0]],h.sides[ids[1]]);assert.equal(s.players[h.exchanged[0]].symbol,s.players[h.exchanged[1]].symbol);
 });
 test('代表8ケースをNPCが29秒まで処理する',()=>{
@@ -33,4 +33,14 @@ test('女杖は女側の外周安置を消し、男側の安置を残す',()=>{
   assert.equal(weaponHits(s,{x:-10,y:14}).female,true);
   assert.deepEqual(weaponHits(s,{x:11,y:2}),{male:false,female:false});
   s.male='sword';assert.deepEqual(weaponHits(s,{x:13,y:6}),{male:false,female:false});
+});
+
+test('頭割り調整は目基準の南側を選び、ファー右組では記号順が反転する',()=>{
+  // Role priority deliberately conflicts with scatter order.
+  const players=Array.from({length:8},(_,id)=>({id,side:id<4?0:1,symbol:id%4,priority:3-id%4}));
+  for(const mode of ['middle','far']){
+    const left=headSides(players,[0,3],mode);assert.deepEqual(left.exchanged,[3,7]);
+    const right=headSides(players,[4,7],mode);assert.deepEqual(right.exchanged,mode==='far'?[4,0]:[7,3]);
+    const split=headSides(players,[0,7],mode);assert.deepEqual(split.exchanged,[]);
+  }
 });

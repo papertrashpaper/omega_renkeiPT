@@ -1,5 +1,5 @@
 import {Camera} from './camera.js';
-import {Simulation,ROLES,SYMBOLS,EVENTS,CFG,dist,rot,polar,bosses,lateBosses,weaponHits,markersVisible,targetFor} from './engine.js';
+import {Simulation,ROLES,SYMBOLS,EVENTS,CFG,dist,rot,polar,bosses,lateBosses,weaponHits,markersVisible,targetFor} from './engine.js?v=mechanics-20261003b';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const colors=['#fc7e89','#77cff2','#85e7bd','#d7a0f7'];
 let saved={};try{saved=JSON.parse(localStorage.getItem('omega-renkei-settings')||'{}');}catch{}
@@ -11,7 +11,7 @@ function save(){const o={order,autoCamera:$('auto-camera').checked};for(const id
 const options=()=>Object.fromEntries([...settingIds.map(id=>[id,$(id).value]),['demo',$('control').value==='demo']]);
 let sim=new Simulation(options()),keys=new Set(),mask=null,lastUI=0;
 const camera=new Camera();$('auto-camera').checked=saved.autoCamera??true;
-const debuffIcon=(kind)=>`<span class="status-icon ${kind}" role="img" aria-label="${kind==='middle'?'ミドル':kind==='far'?'ファー':'被ダメージ増加'}" title="${kind==='middle'?'ミドル 15～20m':kind==='far'?'ファー 38m以上':'被ダメージ増加'}"></span>`;
+const debuffIcon=(kind)=>`<span class="status-icon ${kind}" role="img" aria-label="${kind==='middle'?'ミドル':kind==='far'?'ファー':'被ダメージ増加'}" title="${kind==='middle'?'ミドル 15～20m':kind==='far'?'ファー 35m以上':'被ダメージ増加'}"></span>`;
 const imgs={};for(const name of ['male-sword','male-shield','female-staff','female-feet']){imgs[name]=new Image();imgs[name].src=`./assets/${name}.webp?v=illustration-20261003`;}
 const xy=p=>{const q=rot(p,camera.angle);return {x:450+q.x*18,y:450+q.y*18};};
 function resize(){const size=Math.max(1,Math.round(canvas.clientWidth*(window.devicePixelRatio||1)));if(canvas.width!==size){canvas.width=canvas.height=size;}}
@@ -41,7 +41,8 @@ function draw(){
   for(let i=0;i<8;i++){const p=polar(14.3,i*Math.PI/4),q=xy(p),c=markColors[i];if(i%2===0)circle(p,.82,'#132230',c,2);else{ctx.fillStyle='#132230';ctx.fillRect(q.x-14,q.y-14,28,28);ctx.strokeStyle=c;ctx.lineWidth=2;ctx.strokeRect(q.x-14,q.y-14,28,28);}textAt(markNames[i],p,c,i%2===0?24:20);}
   textAt('N',{x:0,y:-21},'#a9bdce',13);
   if(t<5.5){sprite('male-sword',{x:-3,y:0});sprite('female-staff',{x:3,y:0});}
-  if(t>=7.5&&t<17.5){drawEye(s);const b=bosses(s);sprite(`female-${s.female}`,b.otherFemale);sprite(`male-${s.male}`,b.otherMale);sprite(`male-${s.male}`,b.male);sprite(`female-${s.female}`,b.female);}
+  if(t>=7.5&&t<17.5)drawEye(s);
+  if(t>=7.5&&t<17.5){const b=bosses(s);sprite(`female-${s.female}`,b.otherFemale);sprite(`male-${s.male}`,b.otherMale);sprite(`male-${s.male}`,b.male);sprite(`female-${s.female}`,b.female);}
   if(t>=17.5){for(const p of lateBosses(s))sprite('male-sword',p,90);sprite('female-staff',{x:0,y:0},94);}
   for(const e of sim.effects){if(e.type==='flare'&&t-e.at<.6)for(const p of e.points)circle(p,5,'#f66b4b38','#ffc191',2);if(e.type==='knock'&&t-e.at<1.5)circle({x:0,y:0},2+Math.max(0,t-e.at)*10,null,'#a9e1ff',3);}
   if(t>=23.5&&t<25.5){

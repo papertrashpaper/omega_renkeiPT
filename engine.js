@@ -17,16 +17,18 @@ export function assignSides(players){
   for(const id of leftOut)sides[id]=1;for(const id of rightOut)sides[id]=0;
   return sides;
 }
-export function headSides(players,stackIds){
+// Rows are ordered north to south with the eye as north, independent of role.
+export const scatterRow=(mode,p)=>p.side===1&&mode==='far'?3-p.symbol:p.symbol;
+export function headSides(players,stackIds,mode){
   const sides=players.map(p=>p.side);let exchanged=[];
   if(sides[stackIds[0]]===sides[stackIds[1]]){
-    const a=stackIds.map(id=>players[id]).sort((a,b)=>b.priority-a.priority)[0];
+    const a=stackIds.map(id=>players[id]).sort((a,b)=>scatterRow(mode,b)-scatterRow(mode,a))[0];
     const b=players.find(p=>p.symbol===a.symbol&&p.id!==a.id);
     sides[a.id]=1-sides[a.id];sides[b.id]=1-sides[b.id];exchanged=[a.id,b.id];
   }
   return {sides,exchanged};
 }
-export const distanceOK=(mode,d)=>mode==='far'?d>=38-1e-7:d>=15-1e-7&&d<=20+1e-7;
+export const distanceOK=(mode,d)=>mode==='far'?d>=35-1e-7:d>=15-1e-7&&d<=20+1e-7;
 // Coordinates use the tips/feet of the reference icons, not their heads.
 export const BOSS_LAYOUT={male:{x:8,y:-4},female:{x:-8,y:4},otherFemale:{x:-8,y:-8},otherMale:{x:0,y:0}};
 export function bosses(s){return Object.fromEntries(Object.entries(BOSS_LAYOUT).map(([k,p])=>[k,rot(p,s.weaponAngle)]));}
@@ -40,7 +42,7 @@ export function weaponHits(s,point,margin=0){
 }
 export function openingTarget(p,side=p.initialSide){return {x:(side===0?-1:1)*[6,8,8,6][p.priority],y:[-7,-2.3,2.3,7][p.priority]};}
 export function psTarget(s,p){
-  const row=p.side===1&&s.mode==='far'?3-p.symbol:p.symbol;
+  const row=scatterRow(s.mode,p);
   const ys=s.mode==='far'?[-18.3,-5.5,5.5,18.3]:[-17.5,-5.5,5.5,17.5];
   const x=s.mode==='far'?Math.sqrt(19.5*19.5-ys[row]*ys[row]):8.5;
   return rot({x:(p.side===0?-1:1)*x,y:ys[row]},s.eyeAngle);
@@ -73,8 +75,8 @@ export function createScenario(options={}){
   const sides=assignSides(players);players.forEach(p=>p.side=sides[p.id]);
   // A pair cannot supply both stack markers: otherwise paired swaps cannot split them.
   const first=Math.floor(rng()*8),second=shuffle(players.filter(p=>p.symbol!==players[first].symbol),rng)[0].id;
-  const head=headSides(players,[first,second]);
-  const s={seed,mode:choose(options.mode,['middle','far']),male:choose(options.male,['sword','shield']),female:choose(options.female,['staff','feet']),weaponAngle:angle(options.weaponAngle),eyeAngle:angle(options.eyeAngle),knockAngle:angle(options.knockAngle),players,stackIds:[first,second],headSides:head.sides,exchanged:head.exchanged};
+  const s={seed,mode:choose(options.mode,['middle','far']),male:choose(options.male,['sword','shield']),female:choose(options.female,['staff','feet']),weaponAngle:angle(options.weaponAngle),eyeAngle:angle(options.eyeAngle),knockAngle:angle(options.knockAngle),players,stackIds:[first,second],headSides:[],exchanged:[]};
+  const head=headSides(players,s.stackIds,s.mode);s.headSides=head.sides;s.exchanged=head.exchanged;
   s.weaponTargets=players.map(p=>safeWeaponTarget(s,p));return s;
 }
 export const markersVisible=t=>t>=5.5&&t<11.5;
@@ -99,7 +101,7 @@ export class Simulation{
       const q=rot(p,-this.scenario.eyeAngle);if(Math.abs(q.x)<5)failures.push([p,'目の直線範囲に被弾']);
       if(this.vulnerable(p))failures.push([p,`距離条件未達でファイラ（ペア間 ${dist(p,this.pair(p)).toFixed(1)}m）`]);
       if(alive.some(q=>q.id!==p.id&&dist(p,q)<5))failures.push([p,'他のプレイヤーのファイラに被弾']);
-      const row=p.side===1&&this.scenario.mode==='far'?3-p.symbol:p.symbol;
+      const row=scatterRow(this.scenario.mode,p);
       const limits=this.scenario.mode==='far'?[-Infinity,-11.9,0,11.9,Infinity]:[-Infinity,-11.5,0,11.5,Infinity];
       if((p.side===0?q.x>=0:q.x<=0)||q.y<limits[row]||q.y>limits[row+1])failures.push([p,'マクロの担当側・記号の並びと異なる散開位置']);
     }
