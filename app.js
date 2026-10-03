@@ -12,7 +12,7 @@ const options=()=>Object.fromEntries([...settingIds.map(id=>[id,$(id).value]),['
 let sim=new Simulation(options()),keys=new Set(),mask=null,lastUI=0;
 const camera=new Camera();$('auto-camera').checked=saved.autoCamera??true;
 const debuffIcon=(kind)=>`<span class="status-icon ${kind}" role="img" aria-label="${kind==='middle'?'ミドル':kind==='far'?'ファー':'被ダメージ増加'}" title="${kind==='middle'?'ミドル 15～20m':kind==='far'?'ファー 38m以上':'被ダメージ増加'}"></span>`;
-const imgs={};for(const name of ['male-sword','male-shield','female-staff','female-feet']){imgs[name]=new Image();imgs[name].src=`./assets/${name}.webp`;}
+const imgs={};for(const name of ['male-sword','male-shield','female-staff','female-feet']){imgs[name]=new Image();imgs[name].src=`./assets/${name}.webp?v=illustration-20261003`;}
 const xy=p=>{const q=rot(p,camera.angle);return {x:450+q.x*18,y:450+q.y*18};};
 function resize(){const size=Math.max(1,Math.round(canvas.clientWidth*(window.devicePixelRatio||1)));if(canvas.width!==size){canvas.width=canvas.height=size;}}
 new ResizeObserver(resize).observe(canvas);
