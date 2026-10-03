@@ -1,8 +1,8 @@
 // Distances are metres; y points south. Geometry is independent of rendering.
 export const ROLES=['H1','MT','D1','D3','H2','ST','D2','D4'];
 export const SYMBOLS=['○','×','△','□'];
-export const CFG={radius:20,walk:6.25,sprint:8.125,sprintDuration:10,sprintCooldown:60,maleRadius:10,lineHalfWidth:5,flareRadius:5,stackRadius:6,knockback:15};
-export const EVENTS=[{time:0,label:'連携プログラムPT 詠唱'},{time:3,label:'詠唱完了'},{time:5.5,label:'記号・距離デバフ付与'},{time:7.5,label:'男女・目 出現'},{time:11.3,label:'武器攻撃 予兆'},{time:11.5,label:'武器着弾・記号消失'},{time:17.5,label:'目・ファイラ／頭割り付与'},{time:25.5,label:'中央から15m吹き飛ばし'},{time:29,label:'男5人の円範囲・頭割り'}];
+export const CFG={radius:20,walk:6.25,sprint:8.125,sprintDuration:10,sprintCooldown:60,maleRadius:10,lineHalfWidth:5,flareRadius:5,stackRadius:6,knockback:15,knockDuration:1.5,staffCrossHalfWidth:12};
+export const EVENTS=[{time:0,label:'連携プログラムPT 詠唱'},{time:3,label:'詠唱完了'},{time:5.5,label:'記号・距離デバフ付与'},{time:7.5,label:'男女・目 出現'},{time:11.3,label:'武器攻撃 予兆'},{time:11.5,label:'武器着弾・記号消失'},{time:17.5,label:'目・ファイラ／頭割り付与'},{time:23.5,label:'吹き飛ばし予兆'},{time:25.5,label:'中央から15m吹き飛ばし'},{time:27,label:'吹き飛ばし着地'},{time:29,label:'男5人の円範囲・頭割り'}];
 export const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 export const rot=(p,a)=>({x:p.x*Math.cos(a)-p.y*Math.sin(a),y:p.x*Math.sin(a)+p.y*Math.cos(a)});
 export const polar=(r,a)=>({x:r*Math.sin(a),y:-r*Math.cos(a)});
@@ -35,7 +35,7 @@ export function weaponHits(s,point,margin=0){
   const dm=dist(p,m),male=s.male==='sword'?dm<10+margin:dm>10-margin;
   const len=Math.hypot(f.x,f.y),ux=-f.x/len,uy=-f.y/len;
   const dx=p.x-f.x,dy=p.y-f.y,along=dx*ux+dy*uy,across=-dx*uy+dy*ux;
-  const staff=Math.abs(along)<5+margin||Math.abs(across)<5+margin;
+  const staff=Math.abs(along)<CFG.staffCrossHalfWidth+margin||Math.abs(across)<5+margin;
   return {male,female:s.female==='staff'?staff:Math.abs(across)>5-margin};
 }
 export function openingTarget(p,side=p.initialSide){return {x:(side===0?-1:1)*[6,8,8,6][p.priority],y:[-7,-2.3,2.3,7][p.priority]};}
@@ -56,10 +56,10 @@ export function stackTarget(s,p,pre=false){
 }
 export function lateBosses(s){return [-Math.PI/4,0,Math.PI/4,3*Math.PI/4,5*Math.PI/4].map(a=>polar(13.5,a+s.knockAngle));}
 export function safeWeaponTarget(s,p){
-  const desired=psTarget(s,p);let best=null,score=Infinity;
+  const desired=psTarget(s,p),b=bosses(s),anchor=s.male==='sword'&&s.female==='feet'?b.female:b.male;let best=null,score=Infinity;
   for(let x=-17;x<=17;x+=0.5)for(let y=-17;y<=17;y+=0.5){
     const q={x,y},h=weaponHits(s,q,0.65);if(Math.hypot(x,y)>18||h.male||h.female)continue;
-    const cost=dist(q,desired)+0.2*Math.hypot(x,y);if(cost<score){score=cost;best=q;}
+    const cost=dist(q,anchor)+0.12*dist(q,desired);if(cost<score){score=cost;best=q;}
   }
   if(!best)throw Error('No weapon safe point');return best;
 }
@@ -106,7 +106,13 @@ export class Simulation{
     for(const [p,r] of failures)this.fail(p,r);
     this.effects.push({type:'flare',at:this.time,points:alive.map(p=>({x:p.x,y:p.y}))});
   }
-  knock(){for(const p of this.players.filter(p=>p.alive)){const d=Math.hypot(p.x,p.y);if(d<0.01){this.fail(p,'吹き飛ばしの方向が定まらない（中央）');continue;}p.x*=1+15/d;p.y*=1+15/d;if(Math.hypot(p.x,p.y)>20)this.fail(p,'吹き飛ばしで外周へ落下');}this.click=null;this.effects.push({type:'knock',at:this.time});}
+  knock(){
+    for(const p of this.players.filter(p=>p.alive)){
+      const d=Math.hypot(p.x,p.y);if(d<0.01){this.fail(p,'吹き飛ばしの方向が定まらない（中央）');continue;}
+      p.flight={x:p.x,y:p.y,dx:p.x/d*CFG.knockback,dy:p.y/d*CFG.knockback,start:this.time};
+    }
+    this.click=null;this.effects.push({type:'knock',at:this.time});
+  }
   checkStack(){
     const s=this.scenario,alive=this.players.filter(p=>p.alive),fails=[];
     for(const p of alive){
@@ -130,7 +136,16 @@ export class Simulation{
     while(remaining>1e-8&&this.status==='running'){
       const next=EVENTS.find(e=>e.time>this.time+1e-8)?.time??29;
       const step=Math.min(remaining,1/120,next-this.time);if(step<=1e-8)break;
-      for(const p of this.players){if(!p.alive)continue;let target,speed=CFG.walk;
+      for(const p of this.players){if(!p.alive)continue;
+        if(p.flight){
+          const f=p.flight,u=Math.min(1,Math.max(0,(this.time+step-f.start)/CFG.knockDuration));
+          const progress=u*u*(3-2*u);
+          p.x=f.x+f.dx*progress;p.y=f.y+f.dy*progress;
+          if(Math.hypot(p.x,p.y)>20+1e-6)this.fail(p,'吹き飛ばしで外周へ落下');
+          if(u>=1-1e-8){p.x=f.x+f.dx;p.y=f.y+f.dy;delete p.flight;}
+          continue;
+        }
+        let target,speed=CFG.walk;
         if(p.id!==this.me.id||this.options.demo)target=targetFor(this.scenario,p,this.time);
         else{speed=this.time-this.sprintAt<10?CFG.sprint:CFG.walk;const len=Math.hypot(this.input.x,this.input.y);if(len){target={x:p.x+this.input.x/len*100,y:p.y+this.input.y/len*100};this.click=null;}else target=this.click;}
         if(target){const d=dist(p,target),v=Math.min(d,speed*step);if(d>1e-8){p.x+=(target.x-p.x)/d*v;p.y+=(target.y-p.y)/d*v;}}

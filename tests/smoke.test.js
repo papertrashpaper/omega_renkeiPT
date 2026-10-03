@@ -23,3 +23,14 @@ test('スプリント10秒・60秒リキャストと停止中の時間固定',()
 
 import {Camera} from '../camera.js';
 test('カメラは最短方向に0.5秒で回転',()=>{const c=new Camera();c.turnTo(Math.PI/2);c.update(.25);assert.ok(Math.abs(c.angle-Math.PI/4)<1e-8);c.update(.25);assert.ok(Math.abs(c.angle-Math.PI/2)<1e-8);assert.equal(c.motion,null);});
+test('吹き飛ばしは瞬間移動せず1.5秒で15m、移動入力を受けない',()=>{
+  const s=new Simulation({seed:42});s.start();s.time=25.5;for(const p of s.players){p.x=2;p.y=0;}s.input={x:0,y:1};s.knock();assert.equal(s.me.x,2);
+  s.advance(.75);assert.ok(Math.abs(s.me.x-9.5)<1e-6);assert.equal(s.me.y,0);
+  s.advance(.75);assert.ok(Math.abs(s.me.x-17)<1e-6);assert.equal(s.me.flight,undefined);
+});
+test('女杖は女側の外周安置を消し、男側の安置を残す',()=>{
+  const s={weaponAngle:0,male:'shield',female:'staff'};
+  assert.equal(weaponHits(s,{x:-10,y:14}).female,true);
+  assert.deepEqual(weaponHits(s,{x:11,y:2}),{male:false,female:false});
+  s.male='sword';assert.deepEqual(weaponHits(s,{x:13,y:6}),{male:false,female:false});
+});

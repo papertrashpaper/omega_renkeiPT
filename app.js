@@ -21,8 +21,8 @@ function textAt(text,p,color='#eee',size=13){const q=xy(p);ctx.textAlign='center
 function psIcon(symbol,x,y,size=14){ctx.save();ctx.translate(x,y);ctx.strokeStyle=colors[symbol];ctx.shadowColor=colors[symbol];ctx.shadowBlur=8;ctx.lineWidth=3.5;ctx.beginPath();if(symbol===0)ctx.arc(0,0,size*.7,0,Math.PI*2);if(symbol===1){ctx.moveTo(-size*.65,-size*.65);ctx.lineTo(size*.65,size*.65);ctx.moveTo(size*.65,-size*.65);ctx.lineTo(-size*.65,size*.65);}if(symbol===2){ctx.moveTo(0,-size*.8);ctx.lineTo(size*.8,size*.65);ctx.lineTo(-size*.8,size*.65);ctx.closePath();}if(symbol===3)ctx.rect(-size*.65,-size*.65,size*1.3,size*1.3);ctx.stroke();ctx.restore();}
 function drawEye(s){const p=xy(polar(22,s.eyeAngle));ctx.save();ctx.translate(p.x,p.y);ctx.rotate(s.eyeAngle+camera.angle);const g=ctx.createRadialGradient(0,0,2,0,0,33);g.addColorStop(0,'#d2ffff');g.addColorStop(.25,'#559ec8');g.addColorStop(1,'#122243');ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,37,26,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#95dcfa';ctx.lineWidth=2;ctx.stroke();ctx.beginPath();ctx.arc(0,0,15,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#0b1832';ctx.beginPath();ctx.ellipse(0,0,5,13,0,0,Math.PI*2);ctx.fill();ctx.restore();}
 function sprite(name,p,size=100,alpha=1){const q=xy(p),im=imgs[name];ctx.save();ctx.globalAlpha=alpha;circle(p,.75,'#090c1999','#8ea1ba88');if(im.complete&&im.naturalWidth)ctx.drawImage(im,q.x-size/3,q.y-size*.88,size*2/3,size);else textAt(name.startsWith('male')?'男':'女',p,'#fff',18);
-  // Ground arrow points toward the arena centre, while the illustration stays upright.
-  const d=Math.hypot(p.x,p.y);if(d>.1){const tip={x:p.x-p.x/d*1.4,y:p.y-p.y/d*1.4},t=xy(tip);ctx.strokeStyle='#e8d7b2';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(t.x,t.y);ctx.stroke();circle(tip,.15,'#f5ddb0');}ctx.restore();}
+  ctx.restore();}
+
 function buildMask(){const c=document.createElement('canvas');c.width=c.height=400;const g=c.getContext('2d'),data=g.createImageData(400,400);for(let y=0;y<400;y++)for(let x=0;x<400;x++){const p={x:(x-200)/10,y:(y-200)/10};if(Math.hypot(p.x,p.y)>20)continue;const h=weaponHits(sim.scenario,p);if(h.male||h.female){const i=(y*400+x)*4;data.data.set([255,152,44,120],i);}}g.putImageData(data,0,0);mask=c;}
 function draw(){
   const s=sim.scenario,t=sim.time,ended=['failed','success'].includes(sim.status),hint=$('hints').checked;
@@ -43,7 +43,18 @@ function draw(){
   if(t<5.5){sprite('male-sword',{x:-3,y:0});sprite('female-staff',{x:3,y:0});}
   if(t>=7.5&&t<17.5){drawEye(s);const b=bosses(s);sprite(`female-${s.female}`,b.otherFemale);sprite(`male-${s.male}`,b.otherMale);sprite(`male-${s.male}`,b.male);sprite(`female-${s.female}`,b.female);}
   if(t>=17.5){for(const p of lateBosses(s))sprite('male-sword',p,90);sprite('female-staff',{x:0,y:0},94);}
-  for(const e of sim.effects){if(e.type==='flare'&&t-e.at<.6)for(const p of e.points)circle(p,5,'#f66b4b38','#ffc191',2);if(e.type==='knock'&&t-e.at<.7)circle({x:0,y:0},2+Math.max(0,t-e.at)*23,null,'#a9e1ff',3);}
+  for(const e of sim.effects){if(e.type==='flare'&&t-e.at<.6)for(const p of e.points)circle(p,5,'#f66b4b38','#ffc191',2);if(e.type==='knock'&&t-e.at<1.5)circle({x:0,y:0},2+Math.max(0,t-e.at)*10,null,'#a9e1ff',3);}
+  if(t>=23.5&&t<25.5){
+    const pulse=((t-23.5)%1),origin={x:0,y:0};
+    circle(origin,2,'#a9e1ff1f','#b3e9ff',2);
+    circle(origin,2+pulse*4,null,`rgba(160,220,255,${.8*(1-pulse)})`,2);
+    for(let i=0;i<8;i++){
+      const angle=i*Math.PI/4,from=xy(polar(2.4,angle)),to=xy(polar(4.3+pulse,angle));
+      const a=xy(rot({x:-.45,y:-(3.6+pulse)},angle)),b=xy(rot({x:.45,y:-(3.6+pulse)},angle));
+      ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.moveTo(a.x,a.y);ctx.lineTo(to.x,to.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle='#baeaff';ctx.lineWidth=3;ctx.stroke();
+    }
+    textAt(`吹き飛ばし ${(25.5-t).toFixed(1)}s`,{x:0,y:3},'#d9f3ff',15);
+  }
   if(t>=29)for(const id of s.stackIds)circle(sim.players[id],6,'#ffdc7829','#ffe8a0',2);
   if(t>=5.5){for(const p of sim.players){const pair=sim.pair(p);if(p.id>pair.id)continue;const a=xy(p),b=xy(pair);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=sim.vulnerable(p)?'#efaaa6bb':'#9de0f4dd';ctx.lineWidth=2.5;ctx.stroke();}}
   if(hint&&t>=5.5){const target=targetFor(s,sim.me,t),q=xy(target);circle(target,1,null,'#a7ffe6',2);ctx.setLineDash([5,6]);const me=xy(sim.me);ctx.beginPath();ctx.moveTo(me.x,me.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='#a7ffe688';ctx.stroke();ctx.setLineDash([]);const pair=xy(sim.pair(sim.me));ctx.beginPath();ctx.moveTo(me.x,me.y);ctx.lineTo(pair.x,pair.y);ctx.strokeStyle=sim.vulnerable(sim.me)?'#fa8b82':'#92dfc5';ctx.stroke();}
@@ -66,7 +77,7 @@ function updateUI(){
   $('cast').hidden=t>=3||sim.status==='ready';$('cast-time').textContent=`${Math.max(0,3-t).toFixed(1)}s`;$('cast-progress').value=t;
   $('my-role').textContent=sim.me.role;$('mode-badge').textContent=t>=5.5?(s.mode==='middle'?'ミドル':'ファー'):'未付与';
   $('debuffs').innerHTML=t>=5.5?debuffIcon(s.mode)+(sim.vulnerable(sim.me)?debuffIcon('vulnerability'):''):'';
-  $('instruction').textContent=t<5.5?'付与されたら記号と担当を覚えましょう。':t<7.5?'頭上の記号を確認。重複時は下から交換。':t<11.5?'男女の武器を確認。11.5秒に記号が消えます。':t<17.5?'目の方向を北として、覚えた配置へ散開。':t<25.5?'頭割りの偏りを確認。男3人側を北にして吹き飛ばし準備。':t<29?'着地後も距離を調整し、4人で頭割り。':'練習終了。';
+  $('instruction').textContent=t<5.5?'付与されたら記号と担当を覚えましょう。':t<7.5?'頭上の記号を確認。重複時は下から交換。':t<11.5?'男女の武器を確認。11.5秒に記号が消えます。':t<17.5?'目の方向を北として、覚えた配置へ散開。':t<25.5?'頭割りの偏りを確認。男3人側を北にして吹き飛ばし準備。':t<27?'吹き飛ばし中… 着地後に距離を調整。':t<29?'着地後も距離を調整し、4人で頭割り。':'練習終了。';
   $('guide-label').hidden=!hint;$('guide-text').hidden=!hint||t<5.5;
   const side=t>=17.5?s.headSides[sim.me.id]:sim.me.side;
   $('guide-text').textContent=`復習：${SYMBOLS[sim.me.symbol]} / ${side===0?'左':'右'}組 / ペア ${sim.pair(sim.me).role} / ${dist(sim.me,sim.pair(sim.me)).toFixed(1)}m${t>=17.5&&s.exchanged.includes(sim.me.id)?' / 頭割り交換担当':''}`;
@@ -91,5 +102,5 @@ canvas.addEventListener('pointerdown',e=>{if(e.button!==0&&e.button!==2)return;g
 canvas.addEventListener('pointermove',e=>{if(!gesture||gesture.id!==e.pointerId)return;if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>5)gesture.drag=true;if(gesture.drag){camera.cancel();camera.angle+=(e.clientX-gesture.last)*.007;}gesture.last=e.clientX;});
 canvas.addEventListener('pointerup',e=>{if(!gesture||gesture.id!==e.pointerId)return;if(!gesture.drag&&e.button===0&&sim.status==='running'&&!sim.options.demo){const r=canvas.getBoundingClientRect();sim.click=rot({x:((e.clientX-r.left)/r.width*900-450)/18,y:((e.clientY-r.top)/r.height*900-450)/18},-camera.angle);}gesture=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);});
 canvas.addEventListener('pointercancel',()=>gesture=null);canvas.addEventListener('lostpointercapture',()=>gesture=null);canvas.addEventListener('contextmenu',e=>e.preventDefault());
-let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.1);last=now;sim.input={x:(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0),y:(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)};sim.input=rot(sim.input,-camera.angle);const before=sim.time;sim.advance(dt*Number($('speed').value));if($('auto-camera').checked){if(before<11.5&&sim.time>=11.5)camera.turnTo(-sim.scenario.eyeAngle);if(before<17.5&&sim.time>=17.5)camera.turnTo(-sim.scenario.knockAngle);}if(sim.status!=='paused')camera.update(dt);draw();if(now-lastUI>100){updateUI();lastUI=now;}requestAnimationFrame(loop);}
+let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.1);last=now;sim.input={x:(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0),y:(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)};sim.input=rot(sim.input,-camera.angle);const before=sim.time;sim.advance(dt*Number($('speed').value));if($('auto-camera').checked){if(before<11.5&&sim.time>=11.5)camera.turnTo(-sim.scenario.eyeAngle);if(before<19&&sim.time>=19)camera.turnTo(-sim.scenario.knockAngle);}if(sim.status!=='paused')camera.update(dt);draw();if(now-lastUI>100){updateUI();lastUI=now;}requestAnimationFrame(loop);}
 party();updateUI();requestAnimationFrame(loop);
